@@ -2,7 +2,26 @@ document.addEventListener('DOMContentLoaded', function () {
     fetch('http://127.0.0.1:8000/api/clientes/')
         .then(response => response.json())
         .then(data => createTables(data));
+
+    // Add event listener to the "Process Client" button
+    const processButton = document.getElementById('processButton');
+    processButton.addEventListener('click', processClient);
 });
+
+function processClient() {
+    // Send a POST request to the API to process a client
+    fetch('http://127.0.0.1:8000/api/clientes/process_client/', {
+        method: 'POST',
+    })
+        .then(response => response.json())
+        .then(data => {
+            // Display the updated client list after processing
+            fetch('http://127.0.0.1:8000/api/clientes/')
+                .then(response => response.json())
+                .then(data => createTables(data));
+        })
+        .catch(error => console.error('Error processing client:', error));
+}
 
 function createTables(data) {
     const clientList = document.getElementById('clientList');
@@ -14,14 +33,38 @@ function createTables(data) {
     const unprocessedTable = createTable(unprocessedClients, true);
     const processedTable = createTable(processedClients, false);
 
+    // Find the highest priority among unprocessed clients
+    const highestPriority = unprocessedClients.reduce((maxPriority, client) => {
+        return Math.max(maxPriority, client.priority);
+    }, 0);
+
+    calculate_prob(highestPriority);
+
     clientList.appendChild(unprocessedTable);
+
+    // Add title for processed client list
+    const processedTitle = document.createElement('h2');
+    processedTitle.textContent = 'Processed Client List';
+    clientList.appendChild(processedTitle);
+
     clientList.appendChild(processedTable);
+}
+
+function calculate_prob (number) {
+    // Fetch probability data
+    fetch('http://127.0.0.1:8000/api/clientes/calculate_probability/?prio=' + number)  // Replace 75 with your actual highest priority
+        .then(response => response.json())
+        .then(probabilityData => {
+            const probText = document.getElementById('probText');
+            probText.innerHTML = '';
+            probText.innerHTML = 'Current Prob: ' + probabilityData.probability.toFixed(1) + '%'
+        });
 }
 
 function createTable(data, isUnprocessed) {
     const table = document.createElement('table');
     table.className = 'table';
-    
+
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     const headers = ['Name', 'Status', 'Priority'];
